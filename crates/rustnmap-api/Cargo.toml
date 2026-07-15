@@ -32,6 +32,7 @@ chrono = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.9"
 hex = "0.4"
 futures-util = "0.3"
@@ -58,3 +59,7 @@ http-body-util = "0.1"
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "rustnmap-api-server"
+path = "examples/server.rs"

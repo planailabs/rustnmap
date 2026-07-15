@@ -47,10 +47,29 @@ async fn main() -> anyhow::Result<()> {
         .with(env_filter)
         .init();
 
-    // Create API configuration
-    let config = ApiConfig::new()
-        .with_listen_addr("127.0.0.1:8080".to_string())
+    // Create API configuration. The listen address and API keys are taken from
+    // the environment so the server can be run as a managed service with a
+    // stable key and a configurable bind address; both fall back to the
+    // original example defaults (127.0.0.1:8080 and a freshly-generated key).
+    let listen_addr =
+        std::env::var("RUSTNMAP_API_LISTEN").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
+
+    let mut config = ApiConfig::new()
+        .with_listen_addr(listen_addr)
         .with_max_concurrent_scans(5);
+
+    // RUSTNMAP_API_KEYS is a comma-separated list of accepted bearer tokens.
+    if let Ok(raw) = std::env::var("RUSTNMAP_API_KEYS") {
+        let keys: Vec<String> = raw
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect();
+        if !keys.is_empty() {
+            config = config.with_api_keys(keys);
+        }
+    }
 
     // Log server startup information
     tracing::info!("============================================");

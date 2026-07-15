@@ -587,8 +587,9 @@ mod tests {
             .unwrap();
 
         let results = ScanResultsResponse {
-            scan_id: "scan_001".to_string(),
-            status: ScanStatus::Completed,
+            id: "scan_001".to_string(),
+            status: rustnmap_sdk::models::ScanStatus::Completed,
+            started_at: Utc::now(),
             completed_at: Some(Utc::now()),
             hosts: vec![],
             statistics: rustnmap_output::models::ScanStatistics::default(),
@@ -600,8 +601,8 @@ mod tests {
         let retrieved = manager.get_scan_results("scan_001");
         assert!(retrieved.is_some());
         let retrieved = retrieved.unwrap();
-        assert_eq!(retrieved.scan_id, "scan_001");
-        assert_eq!(retrieved.status, ScanStatus::Completed);
+        assert_eq!(retrieved.id, "scan_001");
+        assert_eq!(retrieved.status, rustnmap_sdk::models::ScanStatus::Completed);
     }
 
     #[test]
@@ -609,8 +610,9 @@ mod tests {
         let manager = create_test_manager();
 
         let results = ScanResultsResponse {
-            scan_id: "nonexistent".to_string(),
-            status: ScanStatus::Completed,
+            id: "nonexistent".to_string(),
+            status: rustnmap_sdk::models::ScanStatus::Completed,
+            started_at: Utc::now(),
             completed_at: Some(Utc::now()),
             hosts: vec![],
             statistics: rustnmap_output::models::ScanStatistics::default(),
@@ -639,8 +641,9 @@ mod tests {
         assert!(!manager.has_results("scan_001"));
 
         let results = ScanResultsResponse {
-            scan_id: "scan_001".to_string(),
-            status: ScanStatus::Completed,
+            id: "scan_001".to_string(),
+            status: rustnmap_sdk::models::ScanStatus::Completed,
+            started_at: Utc::now(),
             completed_at: Some(Utc::now()),
             hosts: vec![],
             statistics: rustnmap_output::models::ScanStatistics::default(),

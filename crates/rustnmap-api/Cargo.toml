@@ -44,6 +44,7 @@ subtle = "2.5"
 rustnmap-core = { workspace = true }
 rustnmap-output = { workspace = true }
 rustnmap-scan-management = { workspace = true }
+rustnmap-sdk = { workspace = true }
 rustnmap-target = { workspace = true }
 
 # Axum extras

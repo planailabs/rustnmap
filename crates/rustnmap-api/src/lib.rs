@@ -222,13 +222,11 @@ pub struct ScanDetail {
     pub progress: ScanProgress,
 }
 
-/// Scan results response
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ScanResultsResponse {
-    pub scan_id: String,
-    pub status: ScanStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub hosts: Vec<rustnmap_output::models::HostResult>,
-    pub statistics: rustnmap_output::models::ScanStatistics,
-}
+/// Scan results response.
+///
+/// The `/results` endpoint returns the SDK's `ScanOutput` DTO so any
+/// `rustnmap-sdk` client (`RemoteScanner::get_results`) can decode it directly.
+/// Serializing the internal `rustnmap_output` types instead drifts the wire
+/// format from what the SDK expects (`id`/`started_at` fields, `port`/`Tcp`/`Up`
+/// naming) and breaks decoding.
+pub type ScanResultsResponse = rustnmap_sdk::models::ScanOutput;

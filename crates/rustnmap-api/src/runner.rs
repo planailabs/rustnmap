@@ -78,11 +78,14 @@ impl ScanRunner {
         tokio::spawn(async move {
             match Self::execute_scan(&scan_id, &targets, &scan_type_str).await {
                 Ok(result) => {
+                    // Build the SDK's `ScanOutput` DTO (see `ScanResultsResponse`)
+                    // so remote clients decode results correctly.
                     let api_result = crate::ScanResultsResponse {
-                        scan_id: scan_id.clone(),
-                        status: ScanStatus::Completed,
-                        completed_at: Some(chrono::Utc::now()),
-                        hosts: result.hosts,
+                        id: scan_id.clone(),
+                        status: rustnmap_sdk::models::ScanStatus::Completed,
+                        started_at: result.metadata.start_time,
+                        completed_at: Some(result.metadata.end_time),
+                        hosts: result.hosts.into_iter().map(Into::into).collect(),
                         statistics: result.statistics,
                     };
 

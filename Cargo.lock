@@ -3412,6 +3412,7 @@ dependencies = [
  "rustnmap-core",
  "rustnmap-output",
  "rustnmap-scan-management",
+ "rustnmap-sdk",
  "rustnmap-target",
  "serde",
  "serde_json",

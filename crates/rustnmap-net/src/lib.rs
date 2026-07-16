@@ -290,19 +290,15 @@ pub mod raw_socket {
                 reason = "AF_INET (2) always fits in sa_family_t (u16)"
             )]
             let sin_family = libc::AF_INET as libc::sa_family_t;
-            let sockaddr = libc::sockaddr_in {
-                sin_family,
-                sin_port: 0, // Let kernel choose port
-                sin_addr: libc::in_addr {
-                    s_addr: u32::from_ne_bytes([
-                        addr_bytes[3],
-                        addr_bytes[2],
-                        addr_bytes[1],
-                        addr_bytes[0],
-                    ]),
-                },
-                sin_zero: [0; 8],
-            };
+            // SAFETY: all-zero is a valid baseline for sockaddr_in on supported platforms.
+            let mut sockaddr: libc::sockaddr_in = unsafe { std::mem::zeroed() };
+            sockaddr.sin_family = sin_family;
+            sockaddr.sin_addr.s_addr = u32::from_ne_bytes([
+                addr_bytes[3],
+                addr_bytes[2],
+                addr_bytes[1],
+                addr_bytes[0],
+            ]);
 
             // SAFETY: bind() with valid fd and valid sockaddr pointer
             // The size_of::<sockaddr_in>() is 16 bytes, which always fits in socklen_t (u32)
@@ -345,7 +341,8 @@ pub mod raw_socket {
                 let tv = libc::timeval {
                     #[expect(clippy::cast_possible_wrap, reason = "time_t on Linux is i64")]
                     tv_sec: to.as_secs() as libc::time_t,
-                    tv_usec: libc::suseconds_t::from(to.subsec_micros()),
+                    tv_usec: libc::suseconds_t::try_from(to.subsec_micros())
+                        .expect("subsecond microseconds fit in suseconds_t"),
                 };
                 // SAFETY: setsockopt with valid fd and valid timeval pointer
                 let ret = unsafe {

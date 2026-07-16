@@ -405,7 +405,7 @@ impl MmapPacketEngine {
             )));
         }
         for (i, &b) in bytes.iter().enumerate() {
-            ifreq.ifr_name[i] = i8::try_from(b).map_err(|_overflow| {
+            ifreq.ifr_name[i] = libc::c_char::try_from(b).map_err(|_overflow| {
                 PacketError::InvalidInterfaceName(format!(
                     "invalid character in interface name: {if_name}"
                 ))
@@ -463,7 +463,7 @@ impl MmapPacketEngine {
             )));
         }
         for (i, &b) in bytes.iter().enumerate() {
-            ifreq.ifr_name[i] = i8::try_from(b).map_err(|_overflow| {
+            ifreq.ifr_name[i] = libc::c_char::try_from(b).map_err(|_overflow| {
                 PacketError::InvalidInterfaceName(format!(
                     "invalid character in interface name: {if_name}"
                 ))

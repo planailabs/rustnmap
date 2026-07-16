@@ -409,7 +409,7 @@ impl RecvfromPacketEngine {
             }
             #[expect(clippy::cast_possible_wrap, reason = "ASCII values fit in i8")]
             {
-                if_name[i] = byte as i8;
+                if_name[i] = byte as libc::c_char;
             }
         }
 

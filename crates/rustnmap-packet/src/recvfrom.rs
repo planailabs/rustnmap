@@ -653,7 +653,7 @@ impl RecvfromPacketEngine {
     /// # Errors
     ///
     /// Returns an error if the filter cannot be attached.
-    pub fn set_filter(&self, filter: &libc::sock_fprog) -> Result<(), PacketError> {
+    pub fn set_filter(&self, filter: &crate::BpfProgram) -> Result<(), PacketError> {
         // SAFETY: setsockopt is thread-safe given unique fd
         let ret = unsafe {
             libc::setsockopt(
@@ -666,7 +666,7 @@ impl RecvfromPacketEngine {
                     reason = "sock_fprog size fits in u32"
                 )]
                 {
-                    mem::size_of::<libc::sock_fprog>() as u32
+                    mem::size_of::<crate::BpfProgram>() as u32
                 },
             )
         };
@@ -959,7 +959,7 @@ impl PacketEngine for RecvfromPacketEngine {
     /// # Errors
     ///
     /// Returns an error if the filter cannot be attached.
-    fn set_filter(&self, filter: &libc::sock_fprog) -> crate::Result<()> {
+    fn set_filter(&self, filter: &crate::BpfProgram) -> crate::Result<()> {
         self.set_filter(filter)
     }
 }

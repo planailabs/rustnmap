@@ -1205,7 +1205,7 @@ impl PacketEngine for MmapPacketEngine {
         Ok(())
     }
 
-    fn set_filter(&self, filter: &libc::sock_fprog) -> Result<()> {
+    fn set_filter(&self, filter: &crate::BpfProgram) -> Result<()> {
         // SAFETY: setsockopt with SO_ATTACH_FILTER is safe with valid filter pointer
         let result = unsafe {
             libc::setsockopt(
@@ -1213,7 +1213,7 @@ impl PacketEngine for MmapPacketEngine {
                 libc::SOL_SOCKET,
                 libc::SO_ATTACH_FILTER,
                 std::ptr::from_ref(filter).cast::<c_void>(),
-                u32::try_from(mem::size_of::<libc::sock_fprog>())
+                u32::try_from(mem::size_of::<crate::BpfProgram>())
                     .map_err(|e| PacketError::BpfFilter(format!("Invalid filter size: {e}")))?,
             )
         };

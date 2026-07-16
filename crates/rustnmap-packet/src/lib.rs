@@ -68,11 +68,27 @@
 
 use libc::{c_int, c_ushort};
 
+/// Linux classic-BPF program passed to packet engines.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct BpfProgram {
+    /// Number of instructions.
+    pub len: u16,
+    /// Pointer to the first instruction.
+    pub filter: *mut BpfInstruction,
+}
+
+// SAFETY: the pointer is only borrowed while installing the filter.
+unsafe impl Send for BpfProgram {}
+// SAFETY: the pointer is only borrowed while installing the filter.
+unsafe impl Sync for BpfProgram {}
+
 // ============================================================================
 // Module declarations
 // ============================================================================
 
 /// Linux system call wrappers and TPACKET_V2 structures.
+#[cfg(target_os = "linux")]
 pub mod sys;
 
 /// Error types for packet engine operations.
@@ -82,28 +98,37 @@ mod error;
 mod engine;
 
 /// PACKET_MMAP V2 ring buffer implementation.
+#[cfg(target_os = "linux")]
 mod mmap;
 
 /// Async packet engine with Tokio integration.
+#[cfg(target_os = "linux")]
 mod async_engine;
 
 /// Packet stream implementation.
+#[cfg(target_os = "linux")]
 mod stream;
 
 /// recvfrom-based fallback packet engine.
+#[cfg(target_os = "linux")]
 mod recvfrom;
 
 /// BPF (Berkeley Packet Filter) utilities.
 pub mod bpf;
 
 /// Zero-copy packet buffer implementation.
+#[cfg(target_os = "linux")]
 pub mod zero_copy;
+
+#[cfg(not(target_os = "linux"))]
+mod unsupported;
 
 // ============================================================================
 // Public re-exports
 // ============================================================================
 
 #[doc(inline)]
+#[cfg(target_os = "linux")]
 pub use crate::async_engine::AsyncPacketEngine;
 #[doc(inline)]
 pub use crate::bpf::{BpfFilter, BpfInstruction};
@@ -112,15 +137,26 @@ pub use crate::engine::{EngineStats, PacketBuffer, PacketEngine, RingConfig};
 #[doc(inline)]
 pub use crate::error::{PacketError, Result};
 #[doc(inline)]
+#[cfg(target_os = "linux")]
 pub use crate::mmap::MmapPacketEngine;
 #[doc(inline)]
+#[cfg(target_os = "linux")]
 pub use crate::mmap::RingRef;
 #[doc(inline)]
+#[cfg(target_os = "linux")]
 pub use crate::recvfrom::RecvfromPacketEngine;
 #[doc(inline)]
+#[cfg(target_os = "linux")]
 pub use crate::stream::PacketStream;
 #[doc(inline)]
+#[cfg(target_os = "linux")]
 pub use crate::zero_copy::ZeroCopyPacket;
+
+#[cfg(not(target_os = "linux"))]
+pub use crate::unsupported::{
+    AsyncPacketEngine, MmapPacketEngine, PacketStream, RecvfromPacketEngine, RingRef,
+    ZeroCopyPacket,
+};
 
 // ============================================================================
 // Constants

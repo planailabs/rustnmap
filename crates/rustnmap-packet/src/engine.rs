@@ -24,7 +24,7 @@
 // Rust guideline compliant 2026-03-05
 
 use crate::error::PacketError;
-use crate::zero_copy::ZeroCopyPacket;
+use crate::ZeroCopyPacket;
 use async_trait::async_trait;
 use bytes::Bytes;
 use std::time::Instant;
@@ -192,11 +192,11 @@ impl RingConfig {
             clippy::cast_possible_truncation,
             reason = "TPACKET_ALIGNMENT is a small constant"
         )]
-        if self.frame_size < crate::sys::TPACKET_ALIGNMENT as u32 {
+        const TPACKET_ALIGNMENT: u32 = 16;
+        if self.frame_size < TPACKET_ALIGNMENT {
             return Err(PacketError::InvalidConfig(format!(
                 "frame_size ({}) must be >= TPACKET_ALIGNMENT ({})",
-                self.frame_size,
-                crate::sys::TPACKET_ALIGNMENT
+                self.frame_size, TPACKET_ALIGNMENT
             )));
         }
 
@@ -555,7 +555,7 @@ pub trait PacketEngine: Send + Sync {
     /// # Errors
     ///
     /// Returns an error if the filter cannot be set.
-    fn set_filter(&self, filter: &libc::sock_fprog) -> Result<()>;
+    fn set_filter(&self, filter: &crate::BpfProgram) -> Result<()>;
 }
 
 #[cfg(test)]

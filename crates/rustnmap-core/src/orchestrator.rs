@@ -288,6 +288,7 @@ const fn max_cwnd(template: rustnmap_scan::scanner::TimingTemplate) -> u32 {
 ///
 /// Uses SIOCGIFHWADDR ioctl after looking up the interface name from the
 /// network interface list via `getifaddrs`.
+#[cfg(target_os = "linux")]
 fn get_interface_mac(local_addr: std::net::Ipv4Addr) -> Option<MacAddr> {
     let interface_name = get_interface_name_for_addr(local_addr)?;
 
@@ -347,6 +348,11 @@ fn get_interface_mac(local_addr: std::net::Ipv4Addr) -> Option<MacAddr> {
             sa_data[5] as u8
         },
     ]))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn get_interface_mac(_local_addr: std::net::Ipv4Addr) -> Option<MacAddr> {
+    None
 }
 
 /// Finds the network interface name that has the given local IPv4 address.
@@ -438,6 +444,7 @@ mod mac_cache {
 ///
 /// This is effectively free (no packet sending, no socket timeout) compared
 /// to sending a manual ARP request.
+#[cfg(target_os = "linux")]
 fn get_mac_from_system_arp_cache(target_ip: std::net::Ipv4Addr) -> Option<MacAddr> {
     // Determine the interface for this target, matching libdnet's _arp_set_dev()
     // in arp-ioctl.c:78-97. SIOCGARP requires arp_dev to identify which
@@ -504,6 +511,11 @@ fn get_mac_from_system_arp_cache(target_ip: std::net::Ipv4Addr) -> Option<MacAdd
     ]))
 }
 
+#[cfg(not(target_os = "linux"))]
+fn get_mac_from_system_arp_cache(_target_ip: std::net::Ipv4Addr) -> Option<MacAddr> {
+    None
+}
+
 /// Checks if a target IP is directly connected (on the same L2 segment).
 ///
 /// Uses `ip route get <target>` logic via a connected UDP socket to compare
@@ -530,7 +542,7 @@ fn is_directly_connected(target_ip: std::net::Ipv4Addr) -> bool {
 
     // SAFETY: mem::zeroed() is safe for sockaddr_in which is POD
     let mut dst: libc::sockaddr_in = unsafe { std::mem::zeroed() };
-    dst.sin_family = u16::try_from(libc::AF_INET).unwrap_or(0);
+    dst.sin_family = libc::sa_family_t::try_from(libc::AF_INET).unwrap_or(0);
     dst.sin_port = 9u16.to_be(); // discard port
     dst.sin_addr = libc::in_addr {
         s_addr: u32::from(target_ip).to_be(),
@@ -681,6 +693,7 @@ fn resolve_mac_address(
 /// # Returns
 ///
 /// `Some(MacAddr)` if ARP reply is received, `None` otherwise.
+#[cfg(target_os = "linux")]
 fn get_mac_address_via_arp(
     target_ip: std::net::Ipv4Addr,
     _local_addr: std::net::Ipv4Addr,
@@ -796,6 +809,15 @@ fn get_mac_address_via_arp(
         }
     }
 
+    None
+}
+
+#[cfg(not(target_os = "linux"))]
+fn get_mac_address_via_arp(
+    _target_ip: std::net::Ipv4Addr,
+    _local_addr: std::net::Ipv4Addr,
+    _timeout: std::time::Duration,
+) -> Option<MacAddr> {
     None
 }
 

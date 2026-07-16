@@ -510,7 +510,7 @@ impl PacketEngine for AsyncPacketEngine {
         engine.flush()
     }
 
-    fn set_filter(&self, filter: &libc::sock_fprog) -> Result<()> {
+    fn set_filter(&self, filter: &crate::BpfProgram) -> Result<()> {
         // Forward to inner engine (blocking)
         let engine = futures::executor::block_on(self.engine.lock());
         engine.set_filter(filter)

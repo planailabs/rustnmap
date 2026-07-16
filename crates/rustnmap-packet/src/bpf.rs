@@ -1083,10 +1083,10 @@ impl BpfFilter {
     /// instructions. The filter must remain valid for the lifetime of the
     /// `sock_fprog`.
     #[must_use]
-    pub fn to_sock_fprog(&self) -> libc::sock_fprog {
-        libc::sock_fprog {
+    pub fn to_sock_fprog(&self) -> crate::BpfProgram {
+        crate::BpfProgram {
             len: u16::try_from(self.instructions.len()).unwrap_or(u16::MAX),
-            filter: self.instructions.as_ptr() as *mut libc::sock_filter,
+            filter: self.instructions.as_ptr().cast_mut(),
         }
     }
 
@@ -1112,32 +1112,40 @@ impl BpfFilter {
     /// filter.attach(socket.as_raw_fd())?;
     /// ```
     pub fn attach<F: AsRawFd>(&self, fd: &F) -> Result<()> {
-        if self.instructions.is_empty() {
-            return Err(PacketError::BpfFilter("filter is empty".to_string()));
+        #[cfg(not(target_os = "linux"))]
+        return Err(PacketError::NotSupported(
+            "packet filters require Linux".into(),
+        ));
+
+        #[cfg(target_os = "linux")]
+        {
+            if self.instructions.is_empty() {
+                return Err(PacketError::BpfFilter("filter is empty".to_string()));
+            }
+
+            let fprog = self.to_sock_fprog();
+
+            // SAFETY: setsockopt with SO_ATTACH_FILTER is safe with valid filter pointer.
+            // The fprog contains a valid pointer to our instructions vector.
+            let result = unsafe {
+                libc::setsockopt(
+                    fd.as_raw_fd(),
+                    libc::SOL_SOCKET,
+                    libc::SO_ATTACH_FILTER,
+                    std::ptr::from_ref(&fprog).cast::<std::ffi::c_void>(),
+                    u32::try_from(mem::size_of::<crate::BpfProgram>())
+                        .map_err(|e| PacketError::BpfFilter(format!("Invalid filter size: {e}")))?,
+                )
+            };
+
+            if result < 0 {
+                return Err(PacketError::BpfFilter(
+                    io::Error::last_os_error().to_string(),
+                ));
+            }
+
+            Ok(())
         }
-
-        let fprog = self.to_sock_fprog();
-
-        // SAFETY: setsockopt with SO_ATTACH_FILTER is safe with valid filter pointer.
-        // The fprog contains a valid pointer to our instructions vector.
-        let result = unsafe {
-            libc::setsockopt(
-                fd.as_raw_fd(),
-                libc::SOL_SOCKET,
-                libc::SO_ATTACH_FILTER,
-                std::ptr::from_ref(&fprog).cast::<std::ffi::c_void>(),
-                u32::try_from(mem::size_of::<libc::sock_fprog>())
-                    .map_err(|e| PacketError::BpfFilter(format!("Invalid filter size: {e}")))?,
-            )
-        };
-
-        if result < 0 {
-            return Err(PacketError::BpfFilter(
-                io::Error::last_os_error().to_string(),
-            ));
-        }
-
-        Ok(())
     }
 
     /// Detaches any BPF filter from the socket.
@@ -1150,28 +1158,36 @@ impl BpfFilter {
     ///
     /// Returns an error if the socket operation fails.
     pub fn detach<F: AsRawFd>(fd: &F) -> Result<()> {
-        // SAFETY: setsockopt with SO_DETACH_FILTER is safe with null pointer
-        let result = unsafe {
-            libc::setsockopt(
-                fd.as_raw_fd(),
-                libc::SOL_SOCKET,
-                libc::SO_DETACH_FILTER,
-                std::ptr::null(),
-                0,
-            )
-        };
+        #[cfg(not(target_os = "linux"))]
+        return Err(PacketError::NotSupported(
+            "packet filters require Linux".into(),
+        ));
 
-        if result < 0 {
-            // ENOENT means no filter was attached, which is fine
-            let err = io::Error::last_os_error();
-            if err.raw_os_error() != Some(libc::ENOENT) {
-                return Err(PacketError::BpfFilter(format!(
-                    "failed to detach filter: {err}"
-                )));
+        #[cfg(target_os = "linux")]
+        {
+            // SAFETY: setsockopt with SO_DETACH_FILTER is safe with null pointer
+            let result = unsafe {
+                libc::setsockopt(
+                    fd.as_raw_fd(),
+                    libc::SOL_SOCKET,
+                    libc::SO_DETACH_FILTER,
+                    std::ptr::null(),
+                    0,
+                )
+            };
+
+            if result < 0 {
+                // ENOENT means no filter was attached, which is fine
+                let err = io::Error::last_os_error();
+                if err.raw_os_error() != Some(libc::ENOENT) {
+                    return Err(PacketError::BpfFilter(format!(
+                        "failed to detach filter: {err}"
+                    )));
+                }
             }
-        }
 
-        Ok(())
+            Ok(())
+        }
     }
 }
 

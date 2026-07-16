@@ -714,6 +714,7 @@ fn find_interface_name(local_addr: Ipv4Addr) -> Option<String> {
 /// `AF_PACKET` sockets (Layer 2). If ARP reply is received, the host
 /// is considered up. Only works for IPv4 on the same LAN.
 #[derive(Debug)]
+#[cfg(target_os = "linux")]
 pub struct ArpPing {
     /// Source MAC address.
     src_mac: MacAddr,
@@ -729,6 +730,7 @@ pub struct ArpPing {
     retries: u8,
 }
 
+#[cfg(target_os = "linux")]
 impl ArpPing {
     /// ARP `EtherType` protocol number (0x0806).
     const ETH_P_ARP: u16 = 0x0806;
@@ -938,6 +940,7 @@ impl ArpPing {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl HostDiscoveryMethod for ArpPing {
     fn discover(&self, target: &Target) -> Result<HostState, ScanError> {
         let target_ip = match target.ip {
@@ -965,6 +968,7 @@ impl HostDiscoveryMethod for ArpPing {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl Drop for ArpPing {
     fn drop(&mut self) {
         if self.fd >= 0 {
@@ -990,6 +994,7 @@ impl Drop for ArpPing {
 ///
 /// Our simplified version: burst all requests, then poll replies for the timeout.
 #[derive(Debug)]
+#[cfg(target_os = "linux")]
 pub struct ArpPingBatch {
     /// Source MAC address.
     src_mac: MacAddr,
@@ -1001,6 +1006,7 @@ pub struct ArpPingBatch {
     if_index: u32,
 }
 
+#[cfg(target_os = "linux")]
 impl ArpPingBatch {
     /// ARP `EtherType` protocol number (0x0806).
     const ETH_P_ARP: u16 = 0x0806;
@@ -1337,12 +1343,68 @@ impl ArpPingBatch {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl Drop for ArpPingBatch {
     fn drop(&mut self) {
         if self.fd >= 0 {
             // SAFETY: fd is valid and owned by us; being closed in Drop
             unsafe { libc::close(self.fd) };
         }
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+#[derive(Debug)]
+pub struct ArpPing;
+
+#[cfg(not(target_os = "linux"))]
+impl ArpPing {
+    pub fn new(
+        _src_mac: MacAddr,
+        _src_ip: Ipv4Addr,
+        _timeout: Duration,
+        _retries: u8,
+    ) -> Result<Self, ScanError> {
+        Err(ScanError::PermissionDenied {
+            operation: "ARP discovery requires Linux".into(),
+        })
+    }
+
+    fn is_local_target(&self, _target: &Target) -> bool {
+        false
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+impl HostDiscoveryMethod for ArpPing {
+    fn discover(&self, _target: &Target) -> Result<HostState, ScanError> {
+        Ok(HostState::Unknown)
+    }
+    fn requires_root(&self) -> bool {
+        true
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+#[derive(Debug)]
+pub struct ArpPingBatch;
+
+#[cfg(not(target_os = "linux"))]
+impl ArpPingBatch {
+    pub fn new(_src_mac: MacAddr, _src_ip: Ipv4Addr) -> Result<Self, ScanError> {
+        Err(ScanError::PermissionDenied {
+            operation: "ARP discovery requires Linux".into(),
+        })
+    }
+
+    pub fn discover_batch(
+        &self,
+        _targets: &[Ipv4Addr],
+        _timeout: Duration,
+    ) -> Result<HashSet<Ipv4Addr>, ScanError> {
+        Err(ScanError::PermissionDenied {
+            operation: "ARP discovery requires Linux".into(),
+        })
     }
 }
 
@@ -2442,6 +2504,7 @@ impl HostDiscovery {
     }
 
     /// Gets the MAC address of the local network interface that has the given IPv4 address.
+    #[cfg(target_os = "linux")]
     fn get_interface_mac(local_addr: Ipv4Addr) -> Option<MacAddr> {
         let interface_name = Self::get_interface_name_for_addr(local_addr)?;
 
@@ -2501,6 +2564,11 @@ impl HostDiscovery {
                 sa_data[5] as u8
             },
         ]))
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn get_interface_mac(_local_addr: Ipv4Addr) -> Option<MacAddr> {
+        None
     }
 
     /// Finds the network interface name that has the given local IPv4 address.

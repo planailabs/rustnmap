@@ -50,7 +50,11 @@ pub struct BpfProg {
     /// Length of the BPF program in instructions.
     pub bf_len: libc::c_ushort,
     /// Pointer to the BPF instructions.
+    #[cfg(target_os = "linux")]
     pub bf_insns: *const libc::sock_filter,
+    /// Pointer to the BPF instructions on platforms without Linux socket filters.
+    #[cfg(not(target_os = "linux"))]
+    pub bf_insns: *const libc::c_void,
 }
 
 // SAFETY: BpfProg is only used with raw sockets and is thread-safe
